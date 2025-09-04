@@ -30,6 +30,7 @@
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             max-width: 600px;
             width: 100%;
+            position: relative;
         }
 
         h1 {
@@ -53,7 +54,23 @@
             position: relative;
             overflow: hidden;
             border: 10px solid #333;
+            box-shadow: inset 0 0 0 6px rgba(255,255,255,0.4), 0 0 0 6px rgba(0,0,0,0.05);
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.25), rgba(0,0,0,0) 60%);
             transition: transform 4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .wheel::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70px;
+            height: 70px;
+            background: radial-gradient(circle at 30% 30%, #ffffff, #ddd);
+            border: 4px solid #333;
+            border-radius: 50%;
+            z-index: 5;
         }
 
         .wheel-section {
@@ -70,24 +87,25 @@
             font-weight: bold;
             font-size: 16px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
-            transform: rotate(-22.5deg);
-            width: 100px;
+            width: 120px;
             text-align: center;
-            top: 40px;
-            left: 60px;
+            top: 36px;
+            left: 48px;
+            white-space: nowrap;
         }
 
         .pointer {
             position: absolute;
-            top: -10px;
+            top: -8px;
             left: 50%;
             transform: translateX(-50%);
             width: 0;
             height: 0;
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
-            border-top: 30px solid #333;
+            border-left: 16px solid transparent;
+            border-right: 16px solid transparent;
+            border-top: 34px solid #333;
             z-index: 10;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35));
         }
 
         .spin-button {
@@ -138,6 +156,116 @@
             transform: translateY(0);
         }
 
+        .icon-button {
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            color: #374151;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.15s ease;
+        }
+
+        .icon-button:hover {
+            background: #e5e7eb;
+            transform: translateY(-1px);
+        }
+
+        .settings-button {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+        }
+
+        .hidden { display: none; }
+
+        .settings-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 50;
+        }
+
+        .settings-modal {
+            width: 100%;
+            max-width: 560px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .settings-body {
+            padding: 20px;
+        }
+
+        .field-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .field-row input[type="text"] {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .names-list {
+            list-style: none;
+            text-align: left;
+            margin: 0;
+            padding: 0;
+            max-height: 240px;
+            overflow: auto;
+            border: 1px solid #f3f4f6;
+            border-radius: 12px;
+        }
+
+        .names-list li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .names-list li:last-child { border-bottom: none; }
+
+        .danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .footer-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .small {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
         @media (max-width: 480px) {
             .wheel-container {
                 width: 320px;
@@ -162,6 +290,7 @@
 <body>
     <div class="game-container">
         <h1>🎯 Spin the Wheel! 🎯</h1>
+        <button class="icon-button settings-button" id="openSettings" aria-haspopup="dialog" aria-controls="settingsDialog" aria-label="Open settings">⚙️ Settings</button>
        
         <div class="wheel-container">
             <div class="pointer"></div>
@@ -180,8 +309,9 @@
     </div>
 
     <script>
-        // CUSTOMIZE YOUR WHEEL HERE - Just edit this array!
-        const options = [
+        // Persisted names list
+        const STORAGE_KEY = 'spinnerOptions:v1';
+        const DEFAULT_OPTIONS = [
             "Alice",
             "Bob",
             "Charlie",
@@ -190,8 +320,9 @@
             "Frank",
             "Grace",
             "Henry",
-"Steve"
+            "Steve"
         ];
+        let options = [];
 
         // Color palette for the wheel sections
         const colors = [
@@ -204,9 +335,28 @@
         const wheel = document.getElementById('wheel');
         const spinBtn = document.getElementById('spinBtn');
         const result = document.getElementById('result');
+        const openSettingsBtn = document.getElementById('openSettings');
        
         let isSpinning = false;
         let currentRotation = 0;
+
+        function loadOptions() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return [...DEFAULT_OPTIONS];
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed.map(v => String(v)).slice(0, 64);
+                }
+                return [...DEFAULT_OPTIONS];
+            } catch (_) {
+                return [...DEFAULT_OPTIONS];
+            }
+        }
+
+        function saveOptions() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(options));
+        }
 
         // Generate wheel sections based on options
         function createWheel() {
@@ -223,10 +373,21 @@
                 const text = document.createElement('div');
                 text.className = 'wheel-text';
                 text.textContent = option;
+                // Keep text horizontal by counter-rotating child against its rotated parent
+                text.style.transform = `rotate(${-(index * sectionAngle)}deg)`;
                
                 section.appendChild(text);
                 wheel.appendChild(section);
             });
+
+            // Enable/disable spin button if insufficient options
+            if (options.length < 2) {
+                spinBtn.disabled = true;
+                result.textContent = 'Add at least 2 names to spin.';
+                result.classList.add('show');
+            } else {
+                spinBtn.disabled = false;
+            }
         }
 
         function spinWheel() {
@@ -264,13 +425,115 @@
             }, 4000);
         }
 
+        // Settings modal logic
+        const settingsOverlay = document.createElement('div');
+        settingsOverlay.className = 'settings-overlay hidden';
+        settingsOverlay.id = 'settingsDialog';
+        settingsOverlay.setAttribute('role', 'dialog');
+        settingsOverlay.setAttribute('aria-modal', 'true');
+        settingsOverlay.setAttribute('aria-labelledby', 'settingsTitle');
+        settingsOverlay.innerHTML = `
+            <div class="settings-modal" role="document">
+                <div class="settings-header">
+                    <h2 id="settingsTitle">Settings</h2>
+                    <button class="icon-button" id="closeSettings" aria-label="Close settings">✖</button>
+                </div>
+                <div class="settings-body">
+                    <div class="field-row">
+                        <input type="text" id="nameInput" placeholder="Add a name" aria-label="Name" />
+                        <button class="icon-button" id="addNameBtn">Add</button>
+                    </div>
+                    <ul class="names-list" id="namesList" aria-label="Names list"></ul>
+                    <div class="footer-actions">
+                        <button class="icon-button danger" id="resetDefaults">Reset to defaults</button>
+                        <span class="small">Changes save automatically</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(settingsOverlay);
+
+        function renderNamesList() {
+            const list = document.getElementById('namesList');
+            list.innerHTML = '';
+            options.forEach((name, index) => {
+                const li = document.createElement('li');
+                const span = document.createElement('span');
+                span.textContent = name;
+                const remove = document.createElement('button');
+                remove.className = 'icon-button';
+                remove.setAttribute('aria-label', `Remove ${name}`);
+                remove.textContent = 'Remove';
+                remove.addEventListener('click', () => {
+                    options.splice(index, 1);
+                    saveOptions();
+                    createWheel();
+                    renderNamesList();
+                });
+                li.appendChild(span);
+                li.appendChild(remove);
+                list.appendChild(li);
+            });
+        }
+
+        function openSettings() {
+            settingsOverlay.classList.remove('hidden');
+            const input = document.getElementById('nameInput');
+            setTimeout(() => input && input.focus(), 0);
+        }
+
+        function closeSettings() {
+            settingsOverlay.classList.add('hidden');
+            openSettingsBtn.focus();
+        }
+
+        function addName(name) {
+            const trimmed = String(name || '').trim();
+            if (!trimmed) return;
+            if (options.includes(trimmed)) return;
+            options.push(trimmed);
+            saveOptions();
+            createWheel();
+            renderNamesList();
+        }
+
+        // Wire up events
+        openSettingsBtn.addEventListener('click', openSettings);
+        settingsOverlay.addEventListener('click', (e) => {
+            if (e.target === settingsOverlay) closeSettings();
+        });
+        settingsOverlay.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeSettings();
+        });
+        document.getElementById('closeSettings').addEventListener('click', closeSettings);
+        document.getElementById('addNameBtn').addEventListener('click', () => {
+            const input = document.getElementById('nameInput');
+            addName(input.value);
+            input.value = '';
+            input.focus();
+        });
+        document.getElementById('nameInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                addName(e.target.value);
+                e.target.value = '';
+            }
+        });
+        document.getElementById('resetDefaults').addEventListener('click', () => {
+            options = [...DEFAULT_OPTIONS];
+            saveOptions();
+            createWheel();
+            renderNamesList();
+        });
+
         // Initialize the wheel when page loads
+        options = loadOptions();
         createWheel();
+        renderNamesList();
 
         // Show initial message
         setTimeout(() => {
             result.classList.add('show');
         }, 500);
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97813626e37ad9a4',t:'MTc1NjY5MjQxOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
