@@ -87,11 +87,12 @@
             font-weight: bold;
             font-size: 16px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
-            width: 120px;
             text-align: center;
-            top: 36px;
-            left: 48px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             white-space: nowrap;
+            pointer-events: none;
         }
 
         .pointer {
@@ -358,26 +359,37 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(options));
         }
 
-        // Generate wheel sections based on options
+        // Generate wheel based on options using conic-gradient for slices
         function createWheel() {
-            wheel.innerHTML = ''; // Clear existing sections
-           
+            wheel.innerHTML = ''; // Clear existing labels
+            if (options.length === 0) {
+                wheel.style.backgroundImage = '';
+                return;
+            }
+
             const sectionAngle = 360 / options.length;
-           
+
+            // Build conic-gradient for the wheel slices
+            const segments = [];
+            for (let i = 0; i < options.length; i++) {
+                const start = i * sectionAngle;
+                const end = start + sectionAngle;
+                const color = colors[i % colors.length];
+                segments.push(`${color} ${start}deg ${end}deg`);
+            }
+            const radialShade = 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.25), rgba(0,0,0,0) 60%)';
+            const conic = `conic-gradient(${segments.join(', ')})`;
+            wheel.style.backgroundImage = `${radialShade}, ${conic}`;
+
+            // Add labels positioned along the center of each slice
+            const radius = Math.max(0, (wheel.clientWidth / 2) - 70);
             options.forEach((option, index) => {
-                const section = document.createElement('div');
-                section.className = 'wheel-section';
-                section.style.background = colors[index % colors.length];
-                section.style.transform = `rotate(${index * sectionAngle}deg)`;
-               
+                const midAngle = (index * sectionAngle) + (sectionAngle / 2);
                 const text = document.createElement('div');
                 text.className = 'wheel-text';
                 text.textContent = option;
-                // Keep text horizontal by counter-rotating child against its rotated parent
-                text.style.transform = `rotate(${-(index * sectionAngle)}deg)`;
-               
-                section.appendChild(text);
-                wheel.appendChild(section);
+                text.style.transform = `translate(-50%, -50%) rotate(${midAngle}deg) translate(${radius}px) rotate(${-midAngle}deg)`;
+                wheel.appendChild(text);
             });
 
             // Enable/disable spin button if insufficient options
@@ -501,11 +513,15 @@
         openSettingsBtn.addEventListener('click', openSettings);
         settingsOverlay.addEventListener('click', (e) => {
             if (e.target === settingsOverlay) closeSettings();
+            if (e.target && (e.target.id === 'closeSettings' || (e.target.closest && e.target.closest('#closeSettings')))) {
+                closeSettings();
+            }
         });
         settingsOverlay.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeSettings();
         });
-        document.getElementById('closeSettings').addEventListener('click', closeSettings);
+        const closeBtn = document.getElementById('closeSettings');
+        if (closeBtn) closeBtn.addEventListener('click', closeSettings);
         document.getElementById('addNameBtn').addEventListener('click', () => {
             const input = document.getElementById('nameInput');
             addName(input.value);
