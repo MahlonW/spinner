@@ -448,7 +448,7 @@
             <div class="settings-modal" role="document">
                 <div class="settings-header">
                     <h2 id="settingsTitle">Settings</h2>
-                    <button class="icon-button" id="closeSettings" aria-label="Close settings">✖</button>
+                    <button class="icon-button" id="closeSettings" data-close="settings" type="button" aria-label="Close settings">✖</button>
                 </div>
                 <div class="settings-body">
                     <div class="field-row">
@@ -512,8 +512,13 @@
         // Wire up events
         openSettingsBtn.addEventListener('click', openSettings);
         settingsOverlay.addEventListener('click', (e) => {
-            if (e.target === settingsOverlay) closeSettings();
-            if (e.target && (e.target.id === 'closeSettings' || (e.target.closest && e.target.closest('#closeSettings')))) {
+            if (e.target === settingsOverlay) {
+                closeSettings();
+                return;
+            }
+            const targetElement = e.target.nodeType === 1 ? e.target : (e.target.parentElement || null);
+            const btn = targetElement && targetElement.closest ? targetElement.closest('button') : null;
+            if (btn && (btn.id === 'closeSettings' || btn.dataset.close === 'settings')) {
                 closeSettings();
             }
         });
