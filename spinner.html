@@ -192,6 +192,9 @@
             z-index: 50;
         }
 
+        /* Ensure hidden state overrides overlay display */
+        .settings-overlay.hidden { display: none !important; }
+
         .settings-modal {
             width: 100%;
             max-width: 560px;
