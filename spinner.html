@@ -444,6 +444,7 @@
         settingsOverlay.setAttribute('role', 'dialog');
         settingsOverlay.setAttribute('aria-modal', 'true');
         settingsOverlay.setAttribute('aria-labelledby', 'settingsTitle');
+        settingsOverlay.setAttribute('tabindex', '-1');
         settingsOverlay.innerHTML = `
             <div class="settings-modal" role="document">
                 <div class="settings-header">
@@ -527,6 +528,24 @@
         });
         const closeBtn = document.getElementById('closeSettings');
         if (closeBtn) closeBtn.addEventListener('click', closeSettings);
+
+        // Global fallbacks to guarantee closing in all browsers/edge cases
+        document.addEventListener('click', (e) => {
+            let node = e.target;
+            while (node && node !== document) {
+                if (node.id === 'closeSettings' || (node.dataset && node.dataset.close === 'settings')) {
+                    e.preventDefault();
+                    closeSettings();
+                    return;
+                }
+                node = node.parentElement;
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !settingsOverlay.classList.contains('hidden')) {
+                closeSettings();
+            }
+        });
         document.getElementById('addNameBtn').addEventListener('click', () => {
             const input = document.getElementById('nameInput');
             addName(input.value);
